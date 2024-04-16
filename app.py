@@ -1,15 +1,18 @@
 import cv2
 import streamlit as st
 import os
-from datetime import datetime
+import csv
+from datetime import datetime, timedelta
 from keras_facenet import FaceNet
 import numpy as np
 import uuid
 from streamlit_option_menu import option_menu
 from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
 
 logo_path = "logo2.png"
 title_path = "title.png"
+
 
 with st.sidebar:
     st.image(logo_path, width=300)
@@ -24,12 +27,65 @@ with st.sidebar:
         styles={"H1": {"color": "orange", "font-size": "25px"}},
     )
 
+
 def show_notification(message, success=True):
     notification_box = st.empty()
     if success:
         notification_box.success(f":white_check_mark: {message}")
     else:
         notification_box.error(message)
+
+
+# Create a directory to store CSV files
+CSV_DIR = "entry_logs"
+os.makedirs(CSV_DIR, exist_ok=True)
+
+# Dictionary to store entry times of each person
+entry_times = {}
+
+
+def record_entry(name, entry_type, entry_time):
+    try:
+        # Create a CSV file with today's date as filename
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        csv_filename = os.path.join(CSV_DIR, f"{today_date}.csv")
+
+        # Check if the CSV file already exists
+        file_exists = os.path.isfile(csv_filename)
+
+        # Check if the name already exists in the CSV file
+        name_exists = False
+        if file_exists:
+            df = pd.read_csv(csv_filename)
+            if name in df['Name'].values:
+                name_exists = True
+
+        # Write entry to CSV file if name doesn't exist
+        if not name_exists:
+            with open(csv_filename, mode='a', newline='') as file:
+                writer = csv.writer(file)
+
+                # Write header if the file is newly created
+                if not file_exists:
+                    writer.writerow(['Name', 'Type', 'Entry Time'])
+
+                # Write entry for the current person
+                writer.writerow([name, entry_type, entry_time])
+                print("Entry saved successfully:", name, entry_type, entry_time)
+        else:
+            print("Name already exists in the CSV file:", name)
+
+    except Exception as e:
+        print(f"Error occurred while creating the CSV file: {e}")
+
+
+
+def calculate_duration(entry_time, exit_time):
+    entry_datetime = datetime.strptime(entry_time, "%H:%M:%S")
+    exit_datetime = datetime.strptime(exit_time, "%H:%M:%S")
+    duration = exit_datetime - entry_datetime
+    duration_hours = duration.total_seconds() / 3600
+    return duration_hours
 
 
 if selected == "Main Feed":
@@ -42,10 +98,12 @@ if selected == "Main Feed":
     st.title("Live Camera Feed")
     FRAME_WINDOW = st.image([])
 
+
     # Use Streamlit caching to initialize camera once
     @st.cache(allow_output_mutation=True)
     def initialize_camera():
         return cv2.VideoCapture(0)
+
 
     camera = initialize_camera()
 
@@ -77,19 +135,21 @@ if selected == "Main Feed":
     else:
         print("Saved embeddings loaded successfully.")
 
-
     frame_count = 0
     MAX_FRAMES = 50
 
     # Input field for name
     name_input = st.text_input("Enter the name:")
-    name_type = st.selectbox("Type:", ["Staff", "Visitor", "Special"])
+    name_type = st.radio("Type:", ["Staff", "Visitor", "Special"])
+    print("Selected type:", name_type)
 
     # Place the button in the main panel
     capture_button = st.button("Capture 50 Faces")
 
     embedder = FaceNet()
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+    entry_recorded = False  # Flag to check if entry is recorded
 
     while True:
         ret, frame = camera.read()
@@ -121,7 +181,31 @@ if selected == "Main Feed":
                     max_similarity = np.max(similarities)
                     embedding_filename = os.path.basename(saved_embedding_file)
                     recognized_name = embedding_filename.split("_")[0]
+                    record_type = embedding_filename.split("_")[1]
                     break
+
+            # Update the entry_recorded variable when a new entry is recorded
+            if recognized:
+                name = recognized_name
+                entry_type = record_type
+                entry_time = datetime.now().strftime("%H:%M:%S")
+                record_entry(name, entry_type, entry_time)
+
+
+            # elif recognized and entry_recorded:
+            #
+            #     # Check if the unrecognized face matches the recorded entry name
+            #     if name == recognized_name:
+            #         entry_time = entry_times.get(name, "")  # Get entry time or empty string if name not found
+            #         if entry_time:
+            #             # Update exit time if face is not recognized after 15 seconds
+            #             current_time = datetime.now()
+            #             entry_time = datetime.strptime(entry_time, "%H:%M:%S")
+            #             time_difference = (current_time - entry_time).seconds
+            #             if time_difference > 15:
+            #                 exit_time = current_time.strftime("%H:%M:%S")
+            #                 update_exit_time(name, exit_time)
+            #                 entry_recorded = False
 
             # Draw rectangle around the face
             if recognized:
@@ -135,8 +219,10 @@ if selected == "Main Feed":
         FRAME_WINDOW.image(frame)
 
         if capture_button and name_input:
-            name = name_input.strip().replace(" ", "_")  # Remove leading/trailing spaces and replace spaces with underscores
-            type = name_type.strip().replace(" ", "_")  # Remove leading/trailing spaces and replace spaces with underscores
+            name = name_input.strip().replace(" ",
+                                              "_")  # Remove leading/trailing spaces and replace spaces with underscores
+            type = name_type.strip().replace(" ",
+                                             "_")  # Remove leading/trailing spaces and replace spaces with underscores
             # Generate a unique ID for this capture session
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             unique_id = uuid.uuid4().hex[:8]
@@ -174,9 +260,7 @@ if selected == "Main Feed":
             show_notification(f"{name} ({type}) has been added")
             capture_button = False
 
-
 if selected == "Add New":
     st.title(f"You have selected {selected}")
 if selected == "Entry History":
     st.title(f"You have selected {selected}")
-
