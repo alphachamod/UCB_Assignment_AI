@@ -33,6 +33,12 @@ def show_notification(message, success=True):
 
 
 if selected == "Main Feed":
+    # Define the directory where embedding files are saved
+    SAVE_DIR = "captured_data"
+
+    # Define the size of the embeddings
+    embedding_size = 128  # For example, if the embeddings are 128-dimensional
+
     st.title("Live Camera Feed")
     FRAME_WINDOW = st.image([])
 
@@ -47,18 +53,30 @@ if selected == "Main Feed":
     SAVE_DIR = "captured_data"
     os.makedirs(SAVE_DIR, exist_ok=True)
 
-    # Load saved embeddings and filenames
+    # Load saved embedding files
     saved_embedding_files = []
-    saved_embeddings = []
-
     for root, dirs, files in os.walk(SAVE_DIR):
         for file in files:
             if file.endswith("_embeddings.npy"):
                 saved_embedding_files.append(os.path.join(root, file))
-                embeddings = np.load(os.path.join(root, file))
-                saved_embeddings.append(embeddings)
 
-    saved_embeddings = np.concatenate(saved_embeddings)
+    # Initialize saved_embeddings as None
+    saved_embeddings = None
+
+    # Load saved embeddings if files are found
+    if saved_embedding_files:
+        saved_embeddings_list = []
+        for saved_embedding_file in saved_embedding_files:
+            embeddings = np.load(saved_embedding_file)
+            saved_embeddings_list.append(embeddings)
+        saved_embeddings = np.concatenate(saved_embeddings_list, axis=0)
+
+    # Check if saved_embeddings is None or empty
+    if saved_embeddings is None or saved_embeddings.size == 0:
+        print("No saved embeddings found.")
+    else:
+        print("Saved embeddings loaded successfully.")
+
 
     frame_count = 0
     MAX_FRAMES = 50
@@ -156,7 +174,9 @@ if selected == "Main Feed":
             show_notification(f"{name} ({type}) has been added")
             capture_button = False
 
+
 if selected == "Add New":
     st.title(f"You have selected {selected}")
 if selected == "Entry History":
     st.title(f"You have selected {selected}")
+
