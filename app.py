@@ -9,6 +9,7 @@ from streamlit_option_menu import option_menu
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 import csv
+import pygame
 
 import modifyPerson
 from activityHistory import display_entry_logs
@@ -17,6 +18,11 @@ from personLogs import list_saved_persons
 
 logo_path = "assests/logo2.png"
 title_path = "assests/title.png"
+
+# Initialize Pygame mixer
+pygame.mixer.init()
+sound_played = False
+warning_displayed = False
 
 with st.sidebar:
     st.image(logo_path, width=200)
@@ -31,6 +37,10 @@ with st.sidebar:
         styles={"H1": {"color": "orange", "font-size": "25px"}},
     )
 
+
+def play_sound():
+    pygame.mixer.music.load("./assests/alarm.wav")
+    pygame.mixer.music.play()
 
 def show_notification(message, success=True):
     notification_box = st.empty()
@@ -81,7 +91,8 @@ def record_entry(name, entry_type, entry_time):
 
                 # Write header if the file is newly created
                 if not file_exists:
-                    writer.writerow(['Name', 'Type', 'Entry Time', 'Exit Time', 'Duration (hours)', 'Status', 'Minutes Late'])
+                    writer.writerow(
+                        ['Name', 'Type', 'Entry Time', 'Exit Time', 'Duration (hours)', 'Status', 'Minutes Late'])
 
                 # Write entry for the current person
                 writer.writerow([name, entry_type, entry_time, '', '', status, minutes_late])
@@ -125,7 +136,8 @@ def update_exit_time(name, exit_time):
                 # Check if the time difference is greater than 10 seconds
                 if time_difference > 10:
                     df.at[row_index[0], 'Exit Time'] = exit_time
-                    df.at[row_index[0], 'Duration (hours)'] = calculate_duration(df.at[row_index[0], 'Entry Time'], exit_time)
+                    df.at[row_index[0], 'Duration (hours)'] = calculate_duration(df.at[row_index[0], 'Entry Time'],
+                                                                                 exit_time)
                     st.sidebar.write("Exit time updated successfully for:", name)
                     # Write updated entries back to CSV file
                     df.to_csv(csv_filename, index=False)
@@ -137,12 +149,18 @@ def update_exit_time(name, exit_time):
     except Exception as e:
         print(f"Error occurred while updating exit time: {e}")
 
+
 def calculate_duration(entry_time, exit_time):
     entry_datetime = datetime.strptime(entry_time, "%H:%M:%S")
     exit_datetime = datetime.strptime(exit_time, "%H:%M:%S")
     duration = exit_datetime - entry_datetime
     duration_hours = duration.total_seconds() / 3600
     return duration_hours
+
+
+# Function to show a message when a blacklisted person is detected
+def show_blacklist_message(name):
+    st.info(f"Warning: {name} is blacklisted!")
 
 
 if selected == "Main Feed":
@@ -228,6 +246,7 @@ if selected == "Main Feed":
 
             # Inside the loop where we compare embeddings and display names
             recognized = False
+            blacklist_status = False
             max_similarity = 0.0
             recognized_name = ""
             for saved_embedding_file in saved_embedding_files:
@@ -239,10 +258,37 @@ if selected == "Main Feed":
                     embedding_filename = os.path.basename(saved_embedding_file)
                     recognized_name = embedding_filename.split("_")[0]
                     record_type = embedding_filename.split("_")[1]
+
+                    # Get the folder name corresponding to the recognized person
+                    folder_name = os.path.dirname(saved_embedding_file)
+
+                    # Split the folder name by "_"
+                    folder_parts = folder_name.split("_")
+
+                    # Check if the third part of the folder name is "blacklisted"
+                    if len(folder_parts) > 2 and folder_parts[3].lower() == "blacklisted":
+                        blacklist_status = True
+                        print(blacklist_status)
+                        print(folder_parts[3])
+                        print("Alarm")
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0),
+                                      3)  # Red rectangle for recognized faces
+                        cv2.putText(frame, f"{recognized_name} (Similarity: {max_similarity:.2f})", (x, y - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                        if not warning_displayed:
+                            show_blacklist_message(recognized_name)
+                            warning_displayed = True
+                        if not sound_played :
+                            play_sound()
+                            sound_played = True
+                    else:
+                        sound_played = False
+                        warning_displayed = False
                     break
 
             # Update the entry_recorded variable when a new entry is recorded
-            if recognized:
+            if recognized and not blacklist_status is True:
+
                 name = recognized_name
                 entry_type = record_type
                 entry_time = datetime.now().strftime("%H:%M:%S")
@@ -253,15 +299,14 @@ if selected == "Main Feed":
 
                 # Update exit time if time difference is greater than 10 seconds
                 update_exit_time(name, exit_time)
-
-            # Draw rectangle around the face
-            if recognized:
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green rectangle for recognized faces
+                # Check if the person is blacklisted and show message
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 3)  # Green rectangle for recognized faces
                 cv2.putText(frame, f"{recognized_name} (Similarity: {max_similarity:.2f})", (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-            else:
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)  # Red rectangle for unrecognized faces
-                cv2.putText(frame, 'Unknown', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+            if not recognized:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)  # Blue rectangle for unrecognized faces
+                cv2.putText(frame, 'Unknown Person', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
         FRAME_WINDOW.image(frame)
 
@@ -305,7 +350,6 @@ if selected == "Main Feed":
             # Save all embeddings to a single file inside the generated folder
             embeddings_file_path = os.path.join(session_dir, f"{name}_{type}_notblacklisted_embeddings.npy")
             np.save(embeddings_file_path, all_embeddings)
-
 
             # Show notification in the sidebar
             show_notification(f"{name} ({type}) has been added")
@@ -358,7 +402,6 @@ if selected == "Entry History":
     # Call the function to display entry logs for the selected date
     display_entry_logs(selected_date)
 
-
 if selected == "Person Logs":
 
     st.title("List of Saved Persons")
@@ -375,5 +418,3 @@ if selected == "Person Logs":
         st.write(list_saved_persons(SAVE_DIR, ENTRY_LOGS_DIR))
     else:
         st.write(list_saved_persons(SAVE_DIR, ENTRY_LOGS_DIR, filter_type))
-
-

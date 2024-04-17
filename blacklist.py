@@ -27,6 +27,7 @@ def show_blacklisted_persons(SAVE_DIR, ENTRY_LOGS_DIR):
             # Search for face images in the person's folder
             person_folder = os.path.join(SAVE_DIR, file_name)
             face_images = [f for f in os.listdir(person_folder) if f.startswith("face_")]
+            black_status = True
 
             # Get the path of the first found face image
             face_image_path = os.path.join(person_folder, face_images[0]) if face_images else None
