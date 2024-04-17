@@ -1,7 +1,7 @@
 import cv2
 import streamlit as st
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from keras_facenet import FaceNet
 import numpy as np
 import uuid
@@ -43,6 +43,8 @@ def show_notification(message, success=True):
 # Create a directory to store CSV files
 CSV_DIR = "entry_logs"
 os.makedirs(CSV_DIR, exist_ok=True)
+
+
 def record_entry(name, entry_type, entry_time):
     try:
         # Create a CSV file with today's date as filename
@@ -251,22 +253,6 @@ if selected == "Main Feed":
 
                 # Update exit time if time difference is greater than 10 seconds
                 update_exit_time(name, exit_time)
-
-
-            # elif recognized and entry_recorded:
-            #
-            #     # Check if the unrecognized face matches the recorded entry name
-            #     if name == recognized_name:
-            #         entry_time = entry_times.get(name, "")  # Get entry time or empty string if name not found
-            #         if entry_time:
-            #             # Update exit time if face is not recognized after 15 seconds
-            #             current_time = datetime.now()
-            #             entry_time = datetime.strptime(entry_time, "%H:%M:%S")
-            #             time_difference = (current_time - entry_time).seconds
-            #             if time_difference > 15:
-            #                 exit_time = current_time.strftime("%H:%M:%S")
-            #                 update_exit_time(name, exit_time)
-            #                 entry_recorded = False
 
             # Draw rectangle around the face
             if recognized:
