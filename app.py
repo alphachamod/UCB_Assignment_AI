@@ -1,7 +1,6 @@
 import cv2
 import streamlit as st
 import os
-import csv
 from datetime import datetime, timedelta
 from keras_facenet import FaceNet
 import numpy as np
@@ -9,8 +8,11 @@ import uuid
 from streamlit_option_menu import option_menu
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
+import csv
 
 import modifyPerson
+from activityHistory import display_entry_logs
+from blacklist import show_blacklisted_persons
 from personLogs import list_saved_persons
 
 logo_path = "assests/logo2.png"
@@ -41,11 +43,6 @@ def show_notification(message, success=True):
 # Create a directory to store CSV files
 CSV_DIR = "entry_logs"
 os.makedirs(CSV_DIR, exist_ok=True)
-
-# Dictionary to store entry times of each person
-entry_times = {}
-
-
 def record_entry(name, entry_type, entry_time):
     try:
         # Create a CSV file with today's date as filename
@@ -101,6 +98,7 @@ def record_entry(name, entry_type, entry_time):
     except Exception as e:
         print(f"Error occurred while creating the CSV file: {e}")
 
+
 def update_exit_time(name, exit_time):
     try:
         # Create a CSV file with today's date as filename
@@ -144,27 +142,6 @@ def calculate_duration(entry_time, exit_time):
     duration_hours = duration.total_seconds() / 3600
     return duration_hours
 
-
-def display_entry_logs(selected_date):
-    try:
-        # Convert the selected date to string format
-        selected_date_str = selected_date.strftime("%Y-%m-%d")
-
-        # Create the CSV filename based on the selected date
-        csv_filename = os.path.join(CSV_DIR, f"{selected_date_str}.csv")
-
-        # Check if the CSV file exists for the selected date
-        if os.path.isfile(csv_filename):
-            # Read the CSV file into a DataFrame
-            df = pd.read_csv(csv_filename)
-
-            # Display the DataFrame in a table format
-            st.write("Entry Logs for", selected_date_str)
-            st.write(df)
-        else:
-            st.write("No entry logs found for", selected_date_str)
-    except Exception as e:
-        st.error(f"Error occurred while retrieving entry logs: {e}")
 
 if selected == "Main Feed":
     # Define the directory where embedding files are saved
@@ -308,7 +285,7 @@ if selected == "Main Feed":
             type = name_type.strip().replace(" ",
                                              "_")  # Remove leading/trailing spaces and replace spaces with underscores
             # Generate a unique ID for this capture session
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            timestamp = datetime.now().strftime("%Y-%m-%d")
             unique_id = uuid.uuid4().hex[:8]
 
             # Include "notblacklisted" in the folder name
@@ -382,6 +359,9 @@ if selected == "Update":
 
 if selected == "Blacklist Section":
     st.title("Blacklist Section")
+    SAVE_DIR = "captured_data"
+    ENTRY_LOGS_DIR = "entry_logs"
+    show_blacklisted_persons(SAVE_DIR, ENTRY_LOGS_DIR)
 
 if selected == "Entry History":
     st.title("Entry Logs Viewer")
