@@ -10,17 +10,20 @@ from streamlit_option_menu import option_menu
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 
-logo_path = "logo2.png"
-title_path = "title.png"
+import modifyPerson
+from personLogs import list_saved_persons
+
+logo_path = "assests/logo2.png"
+title_path = "assests/title.png"
 
 with st.sidebar:
-    st.image(logo_path, width=300)
+    st.image(logo_path, width=200)
     st.image(title_path, use_column_width=True)
 
     selected = option_menu(
         menu_title="Main Menu",
-        options=["Main Feed", "Add New", "Entry History"],
-        icons=["camera-video", "person-add", "clock-history"],
+        options=["Main Feed", "Update", "Blacklist Section", "Entry History", "Person Logs"],
+        icons=["camera-video", "pencil-square", "ban", "clock-history", "person-lines-fill"],
         menu_icon="house",
         default_index=0,
         styles={"H1": {"color": "orange", "font-size": "25px"}},
@@ -307,7 +310,10 @@ if selected == "Main Feed":
             # Generate a unique ID for this capture session
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             unique_id = uuid.uuid4().hex[:8]
-            unique_folder_name = f"{name}_{type}_{timestamp}_{unique_id}"
+
+            # Include "notblacklisted" in the folder name
+            unique_folder_name = f"{name}_{type}_notblacklisted_{timestamp}_{unique_id}"
+
             session_dir = os.path.join(SAVE_DIR, unique_folder_name)
             os.makedirs(session_dir, exist_ok=True)
 
@@ -334,15 +340,49 @@ if selected == "Main Feed":
             all_embeddings = np.array(all_embeddings)
 
             # Save all embeddings to a single file inside the generated folder
-            embeddings_file_path = os.path.join(session_dir, f"{name}_{type}_embeddings.npy")
+            embeddings_file_path = os.path.join(session_dir, f"{name}_{type}_notblacklisted_embeddings.npy")
             np.save(embeddings_file_path, all_embeddings)
+
 
             # Show notification in the sidebar
             show_notification(f"{name} ({type}) has been added")
             capture_button = False
 
-if selected == "Add New":
-    st.title(f"You have selected {selected}")
+if selected == "Update":
+    # Define the directory where files are saved
+    SAVE_DIR = "captured_data"
+
+    # List all files in the directory
+    all_files = os.listdir(SAVE_DIR)
+
+    # Select a file to edit or delete
+    selected_file = st.selectbox("Select File to Edit/Delete", all_files)
+
+    # Input fields to enter new name and type
+    new_name = st.text_input("Enter New Name", value=selected_file.split("_")[0])
+    new_type = st.selectbox("Select New Type", options=["Staff", "Visitor", "Special"],
+                            index=["Staff", "Visitor", "Special"].index(selected_file.split("_")[1]))
+
+    # Checkbox to select whether the entry is blacklisted or not
+    blacklisted = st.checkbox("Blacklisted")
+
+    # Button to save changes
+    if st.button("Save Changes"):
+        # Call the function to edit and save file details
+        modifyPerson.edit_entry_details(SAVE_DIR, selected_file, new_name, new_type, blacklisted)
+
+    # Checkbox to select whether to delete the selected person and folder
+    delete_checkbox = st.checkbox("Delete Person and Folder")
+
+    # Button to confirm deletion
+    if delete_checkbox:
+        if st.button("Confirm Deletion"):
+            # Call the function to delete the selected person and folder
+            modifyPerson.delete_person_and_folder(SAVE_DIR, selected_file)
+
+if selected == "Blacklist Section":
+    st.title("Blacklist Section")
+
 if selected == "Entry History":
     st.title("Entry Logs Viewer")
 
@@ -351,3 +391,23 @@ if selected == "Entry History":
 
     # Call the function to display entry logs for the selected date
     display_entry_logs(selected_date)
+
+
+if selected == "Person Logs":
+
+    st.title("List of Saved Persons")
+
+    # Define the directories where files and entry logs are saved
+    SAVE_DIR = "captured_data"
+    ENTRY_LOGS_DIR = "entry_logs"
+
+    # Input field to filter by type
+    filter_type = st.selectbox("Filter by Type", options=["All", "Staff", "Visitor", "Special"])
+
+    # List all saved persons in a table
+    if filter_type == "All":
+        st.write(list_saved_persons(SAVE_DIR, ENTRY_LOGS_DIR))
+    else:
+        st.write(list_saved_persons(SAVE_DIR, ENTRY_LOGS_DIR, filter_type))
+
+
