@@ -13,7 +13,6 @@ import pandas as pd
 logo_path = "logo2.png"
 title_path = "title.png"
 
-
 with st.sidebar:
     st.image(logo_path, width=300)
     st.image(title_path, use_column_width=True)
@@ -60,6 +59,19 @@ def record_entry(name, entry_type, entry_time):
             if name in df['Name'].values:
                 name_exists = True
 
+        # Check if the entry is late or on time for staff
+        status = ""
+        minutes_late = 0
+        if entry_type == "Staff":
+            if entry_time <= "09:00:00":
+                status = "On Time"
+            else:
+                status = "Late"
+                # Calculate minutes late
+                entry_time_obj = datetime.strptime(entry_time, "%H:%M:%S")
+                late_time_obj = datetime.strptime("09:00:00", "%H:%M:%S")
+                minutes_late = (entry_time_obj - late_time_obj).total_seconds() / 60
+
         # Write entry to CSV file if name doesn't exist
         if not name_exists:
             with open(csv_filename, mode='a', newline='') as file:
@@ -67,18 +79,60 @@ def record_entry(name, entry_type, entry_time):
 
                 # Write header if the file is newly created
                 if not file_exists:
-                    writer.writerow(['Name', 'Type', 'Entry Time'])
+                    writer.writerow(['Name', 'Type', 'Entry Time', 'Exit Time', 'Duration (hours)', 'Status', 'Minutes Late'])
 
                 # Write entry for the current person
-                writer.writerow([name, entry_type, entry_time])
-                print("Entry saved successfully:", name, entry_type, entry_time)
+                writer.writerow([name, entry_type, entry_time, '', '', status, minutes_late])
+
+                # Display message in the sidebar based on the entry type and status
+                if entry_type == "Staff":
+                    if status == "Late":
+                        st.sidebar.write(f"{name} is {int(minutes_late)} minutes late")
+                    else:
+                        st.sidebar.write(f"{name} is on time")
+                else:
+                    st.sidebar.write("Entry time saved for:", name)
         else:
             print("Name already exists in the CSV file:", name)
 
     except Exception as e:
         print(f"Error occurred while creating the CSV file: {e}")
 
+def update_exit_time(name, exit_time):
+    try:
+        # Create a CSV file with today's date as filename
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        csv_filename = os.path.join(CSV_DIR, f"{today_date}.csv")
 
+        # Read the CSV file
+        df = pd.read_csv(csv_filename)
+
+        # Find the row corresponding to the person's name
+        row_index = df.index[df['Name'] == name].tolist()
+
+        # If the person's name is found in the CSV file
+        if row_index:
+            entry_time = datetime.strptime(df.at[row_index[0], 'Entry Time'], "%H:%M:%S")
+
+            # Check if the exit time is already recorded
+            if pd.isnull(df.at[row_index[0], 'Exit Time']):
+                # Calculate the time difference
+                time_difference = (datetime.now() - entry_time).seconds
+
+                # Check if the time difference is greater than 10 seconds
+                if time_difference > 10:
+                    df.at[row_index[0], 'Exit Time'] = exit_time
+                    df.at[row_index[0], 'Duration (hours)'] = calculate_duration(df.at[row_index[0], 'Entry Time'], exit_time)
+                    st.sidebar.write("Exit time updated successfully for:", name)
+                    # Write updated entries back to CSV file
+                    df.to_csv(csv_filename, index=False)
+            else:
+                print("Exit time already recorded for:", name)
+        else:
+            print("Name not found in CSV file:", name)
+
+    except Exception as e:
+        print(f"Error occurred while updating exit time: {e}")
 
 def calculate_duration(entry_time, exit_time):
     entry_datetime = datetime.strptime(entry_time, "%H:%M:%S")
@@ -87,6 +141,27 @@ def calculate_duration(entry_time, exit_time):
     duration_hours = duration.total_seconds() / 3600
     return duration_hours
 
+
+def display_entry_logs(selected_date):
+    try:
+        # Convert the selected date to string format
+        selected_date_str = selected_date.strftime("%Y-%m-%d")
+
+        # Create the CSV filename based on the selected date
+        csv_filename = os.path.join(CSV_DIR, f"{selected_date_str}.csv")
+
+        # Check if the CSV file exists for the selected date
+        if os.path.isfile(csv_filename):
+            # Read the CSV file into a DataFrame
+            df = pd.read_csv(csv_filename)
+
+            # Display the DataFrame in a table format
+            st.write("Entry Logs for", selected_date_str)
+            st.write(df)
+        else:
+            st.write("No entry logs found for", selected_date_str)
+    except Exception as e:
+        st.error(f"Error occurred while retrieving entry logs: {e}")
 
 if selected == "Main Feed":
     # Define the directory where embedding files are saved
@@ -191,6 +266,12 @@ if selected == "Main Feed":
                 entry_time = datetime.now().strftime("%H:%M:%S")
                 record_entry(name, entry_type, entry_time)
 
+                # Calculate exit time
+                exit_time = datetime.now().strftime("%H:%M:%S")
+
+                # Update exit time if time difference is greater than 10 seconds
+                update_exit_time(name, exit_time)
+
 
             # elif recognized and entry_recorded:
             #
@@ -263,4 +344,10 @@ if selected == "Main Feed":
 if selected == "Add New":
     st.title(f"You have selected {selected}")
 if selected == "Entry History":
-    st.title(f"You have selected {selected}")
+    st.title("Entry Logs Viewer")
+
+    # Date input widget to select the date
+    selected_date = st.date_input("Select Date", datetime.now())
+
+    # Call the function to display entry logs for the selected date
+    display_entry_logs(selected_date)
