@@ -42,3 +42,4 @@ def delete_person_and_folder(SAVE_DIR, selected_file):
         st.success("Person and folder deleted successfully.")
     except Exception as e:
         st.error(f"Error occurred while deleting person and folder: {e}")
+

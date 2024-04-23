@@ -25,8 +25,9 @@ st.set_page_config(
     layout="wide"
 )
 
-logo_path = "assests/logo2.png"
+logo_path = "assests/title3.png"
 title_path = "assests/title.png"
+brand_path = "assests/brand.png"
 
 # Initialize Pygame mixer
 pygame.mixer.init()
@@ -70,8 +71,8 @@ if authenticate_user():
     #     time.sleep(1)
 
     with st.sidebar:
-        st.image(logo_path, width=200)
-        st.image(title_path, use_column_width=True)
+        st.image(logo_path, use_column_width=True)
+        # st.image(title_path, use_column_width=True)
 
         # ------------- Navigation Bar -----------
         selected = option_menu(
@@ -226,12 +227,57 @@ if authenticate_user():
         css = """
         <style>
             .main-feed {
-                margin-top: -80px;
+                margin-top: -40px;
                 font-size: 40px;
                 font-weight: bold;
                 text-transform: uppercase;
+                text-align: left;
+              
                 color: #FF5733; /* Custom color (you can change this) */
             }
+            .noti {
+                font-size: 20px;
+                margin-top: -85px;
+                font-weight: bold;
+                # text-transform: uppercase;
+                text-spacing : 20px;
+                text-align:right;
+                z-index:9999 ;
+                
+            }
+              .brand {
+                margin-top: -90px;
+                font-size: 25px;
+                text-align: left;
+            }
+            .st-emotion-cache-73a7tt e1f1d6gn2{
+                margin-top: -90px;
+            }
+            .recording-circle {
+                margin-top: -58px;
+                margin-left: 200px;
+                margin-bottom: -30px;
+                  background-color: red;
+                  width: 1em;
+                  height: 1em;
+                  border-radius: 50%;
+                  animation: ease pulse 2s infinite;
+                  margin-right: 0.25em;
+                }
+                
+                
+                @keyframes pulse {
+                  0% {
+                    background-color: red;
+                  }
+                  50% {
+                    background-color: #0E1117;
+                  }
+                  100% {
+                    background-color: red;
+                  }
+                }
+
         </style>
         """
 
@@ -239,10 +285,17 @@ if authenticate_user():
         st.markdown(css, unsafe_allow_html=True)
 
         # Display "Main Feed" with the custom style
-        st.markdown('<p class="main-feed">Main Feed</p>', unsafe_allow_html=True)
+        # st.markdown('<p class="brand">Entry<font color="red">F</font>ace™️</p>', unsafe_allow_html=True)
+        # st.markdown('<p class="main-feed">MAIN FEED</p>', unsafe_allow_html=True)
+        st.markdown('<div class="noti">'
+                    '<p class="brand">Entry<font color="red">F</font>ace™️</p>'
+                    '<p class="main-feed">MAIN FEED</p>'
+                    '   <div class="recording-circle"></div>'
+                    '   SURVEILLANCE MODE 🟢'
+                    '<div>', unsafe_allow_html=True)
+        # st.markdown('<p class="noti" ></p>', unsafe_allow_html=True)
 
-        # st.header("Live Camera Feed")
-        FRAME_WINDOW = st.image([])
+        FRAME_WINDOW = st.image([], use_column_width=True)
 
         # Use Streamlit caching to initialize camera once
         @st.cache(allow_output_mutation=True)
@@ -255,6 +308,7 @@ if authenticate_user():
 
         camera = initialize_camera()
         os.makedirs(SAVE_DIR, exist_ok=True)
+
 
 
         # Define the size of the embeddings
