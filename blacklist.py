@@ -3,7 +3,6 @@ import pandas as pd
 import streamlit as st
 from PIL import Image
 
-
 def show_blacklisted_persons(SAVE_DIR, ENTRY_LOGS_DIR):
     # Initialize an empty list to store blacklisted persons
     blacklisted_persons = []
@@ -37,7 +36,7 @@ def show_blacklisted_persons(SAVE_DIR, ENTRY_LOGS_DIR):
                 # Load the image using Pillow
                 img = Image.open(face_image_path)
                 # Resize the image
-                img = img.resize((200, 200))
+                img = img.resize((150, 150))
 
                 blacklisted_persons.append(
                     {'ID': unique_id, 'Name': name, 'Type': file_type, 'Date Added': date, 'Face Image': img})
@@ -47,12 +46,17 @@ def show_blacklisted_persons(SAVE_DIR, ENTRY_LOGS_DIR):
     # Convert the list of dictionaries to a DataFrame
     df_blacklisted = pd.DataFrame(blacklisted_persons)
 
-    # Display the blacklisted persons
-    st.write("Blacklisted Persons:")
+    # Display the blacklisted persons in two columns
+    col1, col2 = st.columns(2)
     for index, row in df_blacklisted.iterrows():
-        # Display person details
-        st.write(
-            f"**ID:** {row['ID']}  |  **Name:** {row['Name']}  |  **Type:** {row['Type']}  |  **Date Added:** {row['Date Added']}")
-        # Display the image
-        st.image(row['Face Image'], caption= 'Face', width=200)
-        st.divider()
+        # Display person details in the first column
+        col1.write(f"**ID:** {row['ID']}")
+        col1.write(f"**Name:** {row['Name']}")
+        col1.write(f"**Type:** {row['Type']}")
+        col1.write(f"**Date Added:** {row['Date Added']}")
+        # Display the image in the second column
+        col2.write(" ")
+        col2.image(row['Face Image'], caption='Face', width=150)
+        col1.divider()
+
+

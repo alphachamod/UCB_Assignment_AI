@@ -8,7 +8,7 @@ import pandas as pd
 import csv
 import pygame
 from sklearn.metrics.pairwise import cosine_similarity
-import time
+
 
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -35,7 +35,7 @@ warning_displayed = False
 
 
 # Initialize columns
-# col1, col2 = st.columns(2)
+col1, col2 = st.columns(2)
 
 
 # Define a function to check credentials
@@ -66,8 +66,8 @@ def authenticate_user():
 # Call the function to authenticate user
 if authenticate_user():
     # for 1 (index=5) from the standard loader group
-    with hc.HyLoader('Loading content', hc.Loaders.standard_loaders, index=5):
-        time.sleep(2)
+    # with hc.HyLoader('EntryFace™️', hc.Loaders.standard_loaders, index=5):
+    #     time.sleep(1)
 
     with st.sidebar:
         st.image(logo_path, width=200)
@@ -220,11 +220,7 @@ if authenticate_user():
 
 
     if selected == "Main Feed":
-        # with col2:
-        # st.title(" ")
-        # st.title(" ")
 
-        # with col1:
 
         # Define custom CSS style
         css = """
@@ -257,20 +253,13 @@ if authenticate_user():
         # Define the directory where embedding files are saved
         SAVE_DIR = "captured_data"
 
-        # Define the size of the embeddings
-        embedding_size = 128  # For example, if the embeddings are 128-dimensional
-
         camera = initialize_camera()
         os.makedirs(SAVE_DIR, exist_ok=True)
 
-        # st.header("Add Person")
-        # # Input field for name
-        # name_input = st.text_input("Enter the name:")
-        # name_type = st.radio("Type:", ["Staff", "Visitor", "Special"])
-        # print("Selected type:", name_type)
-        #
-        # # Place the button in the main panel
-        # capture_button = st.button("Extract Face Data")
+
+        # Define the size of the embeddings
+        embedding_size = 128  # For example, if the embeddings are 128-dimensional
+
         # Load saved embedding files
         saved_embedding_files = []
         for root, dirs, files in os.walk(SAVE_DIR):
@@ -434,36 +423,44 @@ if authenticate_user():
                 capture_button = False
 
     if selected == "Update":
+        upCol1, upCol2 = st.columns(2)
         # Define the directory where files are saved
         SAVE_DIR = "captured_data"
 
         # List all files in the directory
         all_files = os.listdir(SAVE_DIR)
 
-        # Select a file to edit or delete
-        selected_file = st.selectbox("Select File to Edit/Delete", all_files)
+        with upCol1:
+            st.title("Update Section")
+            # Select a file to edit or delete
+            selected_file = st.selectbox("Select a person record to Update/Delete", all_files)
+            # Input fields to enter new name and type
+            new_name = st.text_input("Enter New Name", value=selected_file.split("_")[0])
+            new_type = st.selectbox("Select New Type", options=["Staff", "Visitor", "Special"],
+                                    index=["Staff", "Visitor", "Special"].index(selected_file.split("_")[1]))
 
-        # Input fields to enter new name and type
-        new_name = st.text_input("Enter New Name", value=selected_file.split("_")[0])
-        new_type = st.selectbox("Select New Type", options=["Staff", "Visitor", "Special"],
-                                index=["Staff", "Visitor", "Special"].index(selected_file.split("_")[1]))
+        with upCol2:
+            st.title(" ")
+            st.title(" ")
+            st.title(" ")
+            # st.write(" ")
+            st.info("Check to blacklist the selected person or leave it unchecked to remove from blacklist")
+            # Checkbox to select whether the entry is blacklisted or not
+            blacklisted = st.checkbox("Blacklisted")
 
-        # Checkbox to select whether the entry is blacklisted or not
-        blacklisted = st.checkbox("Blacklisted")
+            # Button to save changes
+            if st.button("Save Changes"):
+                # Call the function to edit and save file details
+                modifyPerson.edit_entry_details(SAVE_DIR, selected_file, new_name, new_type, blacklisted)
 
-        # Button to save changes
-        if st.button("Save Changes"):
-            # Call the function to edit and save file details
-            modifyPerson.edit_entry_details(SAVE_DIR, selected_file, new_name, new_type, blacklisted)
+            # Checkbox to select whether to delete the selected person and folder
+            delete_checkbox = st.button("Delete Person and Folder")
 
-        # Checkbox to select whether to delete the selected person and folder
-        delete_checkbox = st.checkbox("Delete Person and Folder")
-
-        # Button to confirm deletion
-        if delete_checkbox:
-            if st.button("Confirm Deletion"):
-                # Call the function to delete the selected person and folder
-                modifyPerson.delete_person_and_folder(SAVE_DIR, selected_file)
+            # Button to confirm deletion
+            if delete_checkbox:
+                if st.button("Confirm Deletion"):
+                    # Call the function to delete the selected person and folder
+                    modifyPerson.delete_person_and_folder(SAVE_DIR, selected_file)
 
     if selected == "Blacklist Section":
         st.title("Blacklist Section")
