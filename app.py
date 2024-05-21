@@ -9,10 +9,8 @@ import csv
 import pygame
 from sklearn.metrics.pairwise import cosine_similarity
 
-
 import streamlit as st
 from streamlit_option_menu import option_menu
-import hydralit_components as hc
 
 import modifyPerson
 from activityHistory import display_entry_logs
@@ -20,7 +18,7 @@ from blacklist import show_blacklisted_persons
 from personLogs import list_saved_persons
 
 st.set_page_config(
-    page_title="EntryFace",
+    page_title="EntryFace™",
     page_icon="🔐",
     layout="wide"
 )
@@ -34,13 +32,14 @@ pygame.mixer.init()
 sound_played = False
 warning_displayed = False
 
-
 # Initialize columns
-col1, col2 = st.columns(2)
+# col1, col2 = st.columns(2)
+
+# --------------------------------- LOGIN ----------------------------
+st.markdown('<p class="brand">Entry<font color="red">F</font>ace™️</p>', unsafe_allow_html=True)
 
 
 # Define a function to check credentials
-
 def check_credentials(username, password):
     return username.strip() == "admin" and password.strip() == "admin"
 
@@ -51,17 +50,31 @@ def authenticate_user():
         st.session_state['authenticated'] = False
 
     if not st.session_state['authenticated']:
-        username = st.text_input("Username:")
-        password = st.text_input("Password:", type="password")
+        username = st.session_state.setdefault('username', "")
+        password = st.session_state.setdefault('password', "")
+
+        username = st.text_input("Username:", value=username)
+        password = st.text_input("Password:", type="password", value=password)
 
         if st.button("Login"):
             if check_credentials(username, password):
                 st.session_state['authenticated'] = True
-                st.experimental_rerun()
+                st.session_state['username'] = username
+                st.session_state['password'] = password
+                st.rerun()  # Rerun the script to clear cache
             else:
                 st.error("Invalid username or password. Please try again.")
 
     return st.session_state['authenticated']
+
+
+# Define a function for logout
+def logout():
+    if st.session_state['authenticated']:
+        st.session_state['authenticated'] = False
+        st.session_state['username'] = ""
+        st.session_state['password'] = ""
+        st.rerun()  # Rerun the script to clear cache and show login page
 
 
 # Call the function to authenticate user
@@ -92,6 +105,9 @@ if authenticate_user():
 
             # Place the button in the expander
             capture_button = st.button("Extract Face Data")
+        if st.sidebar.button("Logout", type="primary"):
+            logout()
+
 
     def play_sound():
         pygame.mixer.music.load("./assests/alarm.wav")
@@ -222,7 +238,6 @@ if authenticate_user():
 
     if selected == "Main Feed":
 
-
         # Define custom CSS style
         css = """
         <style>
@@ -232,7 +247,7 @@ if authenticate_user():
                 font-weight: bold;
                 text-transform: uppercase;
                 text-align: left;
-              
+
                 color: #FF5733; /* Custom color (you can change this) */
             }
             .noti {
@@ -243,7 +258,7 @@ if authenticate_user():
                 text-spacing : 20px;
                 text-align:right;
                 z-index:9999 ;
-                
+
             }
               .brand {
                 margin-top: -90px;
@@ -264,8 +279,8 @@ if authenticate_user():
                   animation: ease pulse 2s infinite;
                   margin-right: 0.25em;
                 }
-                
-                
+
+
                 @keyframes pulse {
                   0% {
                     background-color: red;
@@ -297,6 +312,7 @@ if authenticate_user():
 
         FRAME_WINDOW = st.image([], use_column_width=True)
 
+
         # Use Streamlit caching to initialize camera once
         @st.cache(allow_output_mutation=True)
         def initialize_camera():
@@ -308,8 +324,6 @@ if authenticate_user():
 
         camera = initialize_camera()
         os.makedirs(SAVE_DIR, exist_ok=True)
-
-
 
         # Define the size of the embeddings
         embedding_size = 128  # For example, if the embeddings are 128-dimensional
@@ -547,12 +561,3 @@ if authenticate_user():
             st.write(list_saved_persons(SAVE_DIR, ENTRY_LOGS_DIR))
         else:
             st.write(list_saved_persons(SAVE_DIR, ENTRY_LOGS_DIR, filter_type))
-#
-# elif st.session_state["authentication_status"] is False:
-#     st.error('Username/password is incorrect')
-# elif st.session_state["authentication_status"] is None:
-#     st.warning('Please enter your username and password')
-#
-# # Saving config file
-# with open('../config.yaml', 'w', encoding='utf-8') as file:
-#     yaml.dump(config, file, default_flow_style=False)
